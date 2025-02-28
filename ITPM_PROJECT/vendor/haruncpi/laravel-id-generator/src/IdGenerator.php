@@ -16,25 +16,29 @@ class IdGenerator
         } else {
             // column_type not available in postgres SQL
             // table_catalog is database in postgres
-            $sql = 'SELECT column_name as "column_name",data_type as "data_type" FROM information_schema.columns ';
+            $sql = 'SELECT column_name AS "column_name",data_type AS "data_type" FROM information_schema.columns ';
             $sql .= 'WHERE table_catalog=:database AND table_name=:table';
         }
 
         $rows = DB::select($sql, ['database' => $database, 'table' => $table]);
         $fieldType = null;
-        $fieldLength = null;
+        $fieldLength = 20;
 
         foreach ($rows as $col) {
             if ($field == $col->column_name) {
+                
                 $fieldType = $col->data_type;
+                //column_type not available in postgres SQL
+                //mysql 8 optional display width for int,bigint numeric field
+
                 if ($driver == 'mysql') {
-                    //example: column_type int(11) to 11
+                    //example: column_type int(11) to 11    
                     preg_match("/(?<=\().+?(?=\))/", $col->column_type, $tblFieldLength);
-                    $fieldLength = $tblFieldLength[0];
-                } else {
-                    //column_type not available in postgres SQL
-                    $fieldLength = 32;
+                    if(count($tblFieldLength)){
+                        $fieldLength = $tblFieldLength[0];
+                    }
                 }
+
                 break;
             }
         }
@@ -94,20 +98,20 @@ class IdGenerator
 
 
         $totalQuery = sprintf("SELECT count(%s) total FROM %s %s", $field, $configArr['table'], $whereString);
-        $total = DB::select($totalQuery);
+        $total = DB::select(trim($totalQuery));
 
         if ($total[0]->total) {
             if ($resetOnPrefixChange) {
-                $maxQuery = sprintf("SELECT MAX(%s) maxId from %s WHERE %s like %s", $field, $table, $field, "'" . $prefix . "%'");
+                $maxQuery = sprintf("SELECT MAX(%s) AS maxid FROM %s WHERE %s LIKE %s", $field, $table, $field, "'" . $prefix . "%'");
             } else {
-                $maxQuery = sprintf("SELECT MAX(%s) maxId from %s", $field, $table);
+                $maxQuery = sprintf("SELECT MAX(%s) AS maxid FROM %s", $field, $table);
             }
 
             $queryResult = DB::select($maxQuery);
-            $maxFullId = $queryResult[0]->maxId;
+            $maxFullId = $queryResult[0]->maxid;
 
             $maxId = substr($maxFullId, $prefixLength, $idLength);
-            return $prefix . str_pad($maxId + 1, $idLength, '0', STR_PAD_LEFT);
+            return $prefix . str_pad((int)$maxId + 1, $idLength, '0', STR_PAD_LEFT);
 
         } else {
             return $prefix . str_pad(1, $idLength, '0', STR_PAD_LEFT);

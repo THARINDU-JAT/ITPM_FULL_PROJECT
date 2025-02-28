@@ -4,6 +4,7 @@ namespace GuzzleHttp\Handler;
 
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Promise as P;
 use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\TransferStats;
 use GuzzleHttp\Utils;
@@ -51,28 +52,22 @@ class MockHandler implements \Countable
      * @param callable|null $onFulfilled Callback to invoke when the return value is fulfilled.
      * @param callable|null $onRejected  Callback to invoke when the return value is rejected.
      */
-    public static function createWithMiddleware(
-        array $queue = null,
-        callable $onFulfilled = null,
-        callable $onRejected = null
-    ): HandlerStack {
+    public static function createWithMiddleware(?array $queue = null, ?callable $onFulfilled = null, ?callable $onRejected = null): HandlerStack
+    {
         return HandlerStack::create(new self($queue, $onFulfilled, $onRejected));
     }
 
     /**
      * The passed in value must be an array of
-     * {@see \Psr\Http\Message\ResponseInterface} objects, Exceptions,
+     * {@see ResponseInterface} objects, Exceptions,
      * callables, or Promises.
      *
      * @param array<int, mixed>|null $queue       The parameters to be passed to the append function, as an indexed array.
      * @param callable|null          $onFulfilled Callback to invoke when the return value is fulfilled.
      * @param callable|null          $onRejected  Callback to invoke when the return value is rejected.
      */
-    public function __construct(
-        array $queue = null,
-        callable $onFulfilled = null,
-        callable $onRejected = null
-    ) {
+    public function __construct(?array $queue = null, ?callable $onFulfilled = null, ?callable $onRejected = null)
+    {
         $this->onFulfilled = $onFulfilled;
         $this->onRejected = $onRejected;
 
@@ -113,8 +108,8 @@ class MockHandler implements \Countable
         }
 
         $response = $response instanceof \Throwable
-            ? \GuzzleHttp\Promise\rejection_for($response)
-            : \GuzzleHttp\Promise\promise_for($response);
+            ? P\Create::rejectionFor($response)
+            : P\Create::promiseFor($response);
 
         return $response->then(
             function (?ResponseInterface $value) use ($request, $options) {
@@ -143,7 +138,8 @@ class MockHandler implements \Countable
                 if ($this->onRejected) {
                     ($this->onRejected)($reason);
                 }
-                return \GuzzleHttp\Promise\rejection_for($reason);
+
+                return P\Create::rejectionFor($reason);
             }
         );
     }
@@ -164,7 +160,7 @@ class MockHandler implements \Countable
             ) {
                 $this->queue[] = $value;
             } else {
-                throw new \TypeError('Expected a Response, Promise, Throwable or callable. Found ' . Utils::describeType($value));
+                throw new \TypeError('Expected a Response, Promise, Throwable or callable. Found '.Utils::describeType($value));
             }
         }
     }
@@ -204,7 +200,7 @@ class MockHandler implements \Countable
     private function invokeStats(
         RequestInterface $request,
         array $options,
-        ResponseInterface $response = null,
+        ?ResponseInterface $response = null,
         $reason = null
     ): void {
         if (isset($options['on_stats'])) {

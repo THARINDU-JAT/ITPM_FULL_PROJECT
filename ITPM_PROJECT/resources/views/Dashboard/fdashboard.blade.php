@@ -22,7 +22,7 @@
 
                                  <?php
 
-                                 $connection = mysqli_connect("localhost","root","","itpm_proj","3307");
+                                 $connection = mysqli_connect("localhost","root","","itpm_proj","3306");
                                  $query = "SELECT id FROM farmer ORDER BY id";
                                  $query_run = mysqli_query($connection, $query);
                                  $row = mysqli_num_rows($query_run);
